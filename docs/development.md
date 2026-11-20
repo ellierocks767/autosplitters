@@ -16,10 +16,17 @@ target to `wasm32-unknown-unknown`) at the root. Each splitter has its own dir w
 `release-plz.toml` if its tags shouldn't be `<crate name>-v<version>`.
 
 ### lsw1 (all in `lsw1/src/lib.rs`)
-- Memory addresses (`STATUS`, `GAMESTATE`, `CUTSCENE`, `DOOR`) in emulated GameCube RAM.
+- Memory addresses (`STATUS`, `GAMESTATE`, `LEVEL`, `NEW_GAME`, `CUTSCENE`, `DOOR`) in emulated GameCube RAM.
 - `Settings` (shown in the LiveSplit One UI).
-- The door lists for room splits.
+- Room splits: `CHAPTERS` (story chapters as level-table index ranges) and `ROOMS` (entering or
+  leaving a door within its chapter, or a level loading). `RoomSplits` takes each room once per
+  chapter visit, plus the first two podrace lap doors; `action` clears it when `LEVEL` moves to
+  another chapter. The ASL keeps the same lists as `vars.Rooms` strings, checked by a test.
 - `find_ram`/`attach`, which locate Dolphin's MEM1 in the process.
+- `should_start`: the rising edge of `NEW_GAME`, which only the title menu's New Game sets.
+- `should_reset`: the title screen, or that same edge with the NG+ setting. `action` picks the
+  timer action per phase; an NG+ New Game resets and starts on one frame, even after a finished
+  run (the ASL can't reset an ended run).
 - `should_split`, the split decision: old state compared with new state.
 
 ### sadx (all in `sadx/src/lib.rs`)
