@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/ellierocks767/autosplitters/compare/lsw1-v0.2.1...lsw1-v0.2.2) - 2026-11-25
+
+### Added
+
+- *(lsw1)* per-chapter room splits and NG+ reset and Ruin wrong-warp options ([#9](https://github.com/ellierocks767/autosplitters/pull/9))
+
+### Other
+
+- move to github and mirror codeberg
+
 ## [0.2.1](https://github.com/ellierocks/autosplitters/compare/lsw1-v0.2.0...lsw1-v0.2.1) - 2026-10-29
 
 ### Fixed
