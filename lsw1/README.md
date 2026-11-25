@@ -20,13 +20,15 @@ load it in the auto splitter settings.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| Start on New Game | on | Start the timer when a new game begins |
+| Start on New Game | on | Start the timer when New Game is chosen on the title menu (not on loading a save or returning to the hub) |
 | End on Darth Maul Outro (Any%) | on | Final split for Any% |
-| Split on every room (Any%) | off | Split on the listed door transitions |
+| Split on every room (Any%) | off | Split on each Any% room transition, once per level visit (backtracking doesn't split again). Doors only count in their own level; rooms reached by several doors or wrong warps (Chancellor rooms 3–7, Ruin room 3, Maul room 4) and Vader's doorless rooms split when the room loads. Podrace splits on laps 2 and 3 |
 | End on Darth Vader Outro (All Minikits) | off | Final split for All Minikits |
 | End on A New Hope Outro (100% NSR) | off | Final split for 100% NSR |
+| NG+: reset on New Game instead of the title screen | off | For NG+, which quits to the title screen mid-run: don't reset there; choosing New Game resets and starts the next run at once (also after a finished run in the wasm; desktop LiveSplit needs a manual reset after a finished run) |
+| Split on Ruin wrong warps (NG+: to the Episode I and II Endings) | off | For NG+: splits when the door goes from `door_to_archive` straight to nothing, which only the Ruin wrong warps to the Episode I and II endings do. The warp that ends the run is the final split (timing ends when movement is taken away) |
 
-The timer also splits when `status` goes 0 to 1, and resets when `gamestate` is 124. One exception: podrace raises
+The timer also splits when `status` goes 0 to 1, and resets when `gamestate` is 124 (the title screen) unless NG+ is on. One exception: podrace raises
 `status` at each of the two crossings of the third lap door, so those rises are ignored while the door reads `door_A`
 or `door_B`, and on the tick where it clears from one of those to nothing.
 
