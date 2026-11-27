@@ -1662,4 +1662,97 @@ mod tests {
         assert!(should_split(&settings, &back, &back_old, &mut fresh_run()));
         assert!(!should_split(&settings, &back, &back, &mut fresh_run()));
     }
+
+    #[test]
+    fn big_story_splits_need_selected_character_six() {
+        // Big's Mystic Ruins splits read `selected_character`, not `curr_character`.
+        let mystic = GameState {
+            level: 33,
+            act: 0,
+            selected_character: 6,
+            ..GameState::default()
+        };
+        type Case = (&'static str, fn(&mut Settings), GameState, GameState);
+        let cases: [Case; 4] = [
+            (
+                "enter_cave",
+                |s| s.enter_cave = true,
+                mystic,
+                GameState { act: 1, ..mystic },
+            ),
+            (
+                "tikal",
+                |s| s.tikal = true,
+                GameState {
+                    level: 34,
+                    ..mystic
+                },
+                mystic,
+            ),
+            (
+                "death_ss",
+                |s| s.death_ss = true,
+                GameState {
+                    act: 1,
+                    lives: 3,
+                    ..mystic
+                },
+                GameState {
+                    act: 1,
+                    lives: 2,
+                    ..mystic
+                },
+            ),
+            (
+                "jungle_ss",
+                |s| s.jungle_ss = true,
+                GameState {
+                    level: 26,
+                    ..mystic
+                },
+                GameState { act: 2, ..mystic },
+            ),
+        ];
+        for (name, enable, old, current) in cases {
+            let mut settings = no_settings();
+            enable(&mut settings);
+            assert!(
+                should_split(&settings, &current, &old, &mut fresh_run()),
+                "{name} should split for Big"
+            );
+            let other = |g: GameState| GameState {
+                selected_character: 0,
+                ..g
+            };
+            assert!(
+                !should_split(&settings, &other(current), &other(old), &mut fresh_run()),
+                "{name} must not split for another character"
+            );
+        }
+    }
+
+    #[test]
+    fn hub_transition_splits_need_exact_level_and_act_edges() {
+        let mut settings = no_settings();
+        settings.enter_ss = true;
+        let old = GameState {
+            level: 33,
+            act: 0,
+            ..GameState::default()
+        };
+        let current = GameState {
+            level: 26,
+            act: 1,
+            ..GameState::default()
+        };
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        let wrong_act = GameState { act: 2, ..current };
+        assert!(!should_split(&settings, &wrong_act, &old, &mut fresh_run()));
+
+        // Mystic Ruins -> Station Square is the reverse of enter_mr.
+        let mut settings = no_settings();
+        settings.enter_mr = true;
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        assert!(should_split(&settings, &old, &current, &mut fresh_run()));
+    }
 }
