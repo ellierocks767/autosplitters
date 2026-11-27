@@ -1,16 +1,31 @@
 # LEGO Star Wars: The Video Game — Japanese PC 1.0
 
 Experimental LiveSplit One autosplitter using Rust `asr`, for the May 2005
-Japanese PC release under Wine or Windows. Build from the workspace root:
+Japanese PC release under Wine or Windows.
+
+## Install
+
+Download `lsw1_pc.wasm` from the newest `lsw1-pc-v*` tag on the
+[GitHub releases page](https://github.com/ellierocks767/autosplitters/releases)
+and load it in LiveSplit One's custom autosplitter setting. The release also
+includes `joey.asl`, the desktop reference for patch 2.
+
+On Linux, OBS needs permission to read the Wine game process (the same ptrace
+restriction described in the
+[Dolphin setup](../lsw1/README.md#linux-allow-obs-to-read-dolphins-memory)).
+
+## Build from source
+
+From the workspace root:
 
 ```sh
 cargo build --release --locked -p lsw1-pc
 ```
 
-Load `target/wasm32-unknown-unknown/release/lsw1_pc.wasm` in LiveSplit One's
-custom autosplitter setting. On Linux, OBS needs permission to read the Wine
-game process (the same ptrace restriction described in the
-[Dolphin setup](../lsw1/README.md#linux-allow-obs-to-read-dolphins-memory)).
+The build produces `target/wasm32-unknown-unknown/release/lsw1_pc.wasm` for the
+same custom autosplitter setting.
+
+## Supported game build and timing
 
 Only the JP build is accepted. Identification uses PE metadata and two short
 code signatures, preserving compatibility with `lsw1-jp-patch` debug labels,
