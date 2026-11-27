@@ -1241,6 +1241,77 @@ mod tests {
     }
 
     #[test]
+    fn chaos_6_uses_the_timer_edge_for_knuckles_and_the_event_for_sonic() {
+        let knuckles_fighting = GameState {
+            level: 18,
+            curr_character: 3,
+            game_status: 15,
+            timer_start: 1,
+            boss_health: 1,
+            ..GameState::default()
+        };
+        let knuckles_defeated_boss = GameState {
+            timer_start: 0,
+            boss_health: 0,
+            ..knuckles_fighting
+        };
+        let mut settings = no_settings();
+        let mut run = fresh_run();
+
+        assert!(!should_split(
+            &settings,
+            &knuckles_defeated_boss,
+            &knuckles_fighting,
+            &mut run
+        ));
+        settings.chaos_6 = true;
+        assert!(should_split(
+            &settings,
+            &knuckles_defeated_boss,
+            &knuckles_fighting,
+            &mut run
+        ));
+        assert!(!should_split(
+            &settings,
+            &knuckles_defeated_boss,
+            &knuckles_defeated_boss,
+            &mut run
+        ));
+
+        let sonic_fighting = GameState {
+            curr_character: 0,
+            ..knuckles_fighting
+        };
+        let sonic_defeated_boss = GameState {
+            curr_character: 0,
+            ..knuckles_defeated_boss
+        };
+        let mut run = fresh_run();
+        settings.six_sonic = true;
+        assert!(!should_split(
+            &settings,
+            &sonic_defeated_boss,
+            &sonic_fighting,
+            &mut run
+        ));
+
+        let mut sonic_event = sonic_defeated_boss;
+        sonic_event.event_bytes[50] = 1;
+        assert!(should_split(
+            &settings,
+            &sonic_event,
+            &sonic_defeated_boss,
+            &mut run
+        ));
+        assert!(!should_split(
+            &settings,
+            &sonic_event,
+            &sonic_event,
+            &mut run
+        ));
+    }
+
+    #[test]
     fn upgrade_split_needs_increase_and_a_loaded_level() {
         let old = GameState {
             level: 5,
