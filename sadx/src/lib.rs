@@ -1409,4 +1409,153 @@ mod tests {
         update_game_time(&current, &current, &mut run);
         assert_eq!(run.total_frames, 14_657);
     }
+
+    #[test]
+    fn enter_splits_fire_only_on_their_level_transition() {
+        type Case = (fn(&mut Settings), u8, u8);
+        let cases: [Case; 17] = [
+            (|s| s.enter_egg_hornet = true, 20, 33),
+            (|s| s.enter_chaos_2 = true, 16, 26),
+            (|s| s.enter_chaos_4 = true, 17, 33),
+            (|s| s.enter_chaos_6 = true, 18, 29),
+            (|s| s.enter_beta_1 = true, 24, 33),
+            (|s| s.enter_beta_2 = true, 25, 29),
+            (|s| s.eec = true, 1, 26),
+            (|s| s.ewv = true, 2, 33),
+            (|s| s.ec = true, 9, 26),
+            (|s| s.eic = true, 8, 33),
+            (|s| s.etp = true, 3, 26),
+            (|s| s.esh = true, 4, 26),
+            (|s| s.erm = true, 5, 33),
+            (|s| s.esd = true, 6, 29),
+            (|s| s.elw = true, 7, 33),
+            (|s| s.efe = true, 10, 33),
+            (|s| s.ehs = true, 12, 32),
+        ];
+        for (enable, level, from) in cases {
+            let old = GameState {
+                level: from as _,
+                ..GameState::default()
+            };
+            let current = GameState {
+                level: level as _,
+                ..old
+            };
+            let mut settings = no_settings();
+            assert!(
+                !should_split(&settings, &current, &old, &mut fresh_run()),
+                "{from}->{level} splits with its setting off"
+            );
+            enable(&mut settings);
+            assert!(
+                should_split(&settings, &current, &old, &mut fresh_run()),
+                "{from}->{level} should split"
+            );
+            assert!(
+                !should_split(&settings, &current, &current, &mut fresh_run()),
+                "{level} must not split while staying in the level"
+            );
+            let wrong_origin = GameState { level: 0, ..old };
+            assert!(
+                !should_split(&settings, &current, &wrong_origin, &mut fresh_run()),
+                "0->{level} must not split"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_splits_once_when_health_drops_from_one_to_zero() {
+        let old = GameState {
+            level: 23,
+            boss_health: 1,
+            ..GameState::default()
+        };
+        let current = GameState {
+            boss_health: 0,
+            ..old
+        };
+        let mut settings = no_settings();
+
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.zero = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        assert!(!should_split(
+            &settings,
+            &current,
+            &current,
+            &mut fresh_run()
+        ));
+    }
+
+    #[test]
+    fn timer_edge_final_bosses_need_their_variant_marker() {
+        // Egg Walker (level 21, walker_value 9) and Beta MK2 (level 25, mk2_value 255)
+        // split when the boss timer stops with health at zero.
+        for (level, walker, mk2) in [(21, 9, 0), (25, 0, 255)] {
+            let old = GameState {
+                level,
+                walker_value: walker,
+                mk2_value: mk2,
+                timer_start: 1,
+                boss_health: 0,
+                ..GameState::default()
+            };
+            let current = GameState {
+                timer_start: 0,
+                ..old
+            };
+            let mut settings = no_settings();
+            settings.egg_walker = true;
+            settings.beta_mk2 = true;
+            assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+            assert!(!should_split(
+                &settings,
+                &current,
+                &current,
+                &mut fresh_run()
+            ));
+            let alive = GameState {
+                boss_health: 3,
+                ..current
+            };
+            assert!(!should_split(&settings, &alive, &old, &mut fresh_run()));
+            let other_variant = GameState {
+                walker_value: 0,
+                mk2_value: 0,
+                ..current
+            };
+            let old_other = GameState {
+                walker_value: 0,
+                mk2_value: 0,
+                ..old
+            };
+            assert!(!should_split(
+                &settings,
+                &other_variant,
+                &old_other,
+                &mut fresh_run()
+            ));
+        }
+    }
+
+    #[test]
+    fn e101_splits_on_flag_increase_for_big_only_character_six() {
+        let old = GameState {
+            curr_character: 6,
+            ..GameState::default()
+        };
+        let current = GameState {
+            e101_flag: 1,
+            ..old
+        };
+        let mut settings = no_settings();
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.e101 = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        let other = GameState {
+            curr_character: 0,
+            ..current
+        };
+        assert!(!should_split(&settings, &other, &old, &mut fresh_run()));
+    }
 }
