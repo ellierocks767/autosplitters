@@ -1139,4 +1139,203 @@ mod tests {
 
         assert_eq!(run.total_frames, 20);
     }
+
+    /// Every setting off. `Settings` has no `Default` (the `Title` marker lacks one), and
+    /// it holds only `bool`s and the unit struct `Title`, so all-zero bytes are valid.
+    fn no_settings() -> Settings {
+        // SAFETY: Settings contains only bool fields and zero-sized Title markers.
+        unsafe { std::mem::zeroed() }
+    }
+
+    fn fresh_run() -> RunState {
+        RunState::new(Instant::now())
+    }
+
+    #[test]
+    fn character_split_can_ban_trial_mode() {
+        let old = story_select_state();
+        let current = GameState {
+            game_mode: 9,
+            ..old
+        };
+        let mut settings = no_settings();
+        settings.char_split = true;
+
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.char_split_ban_trial = true;
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+    }
+
+    #[test]
+    fn event_split_needs_enabled_event_and_no_story_select() {
+        let old = GameState::default();
+        let mut current = GameState::default();
+        current.event_bytes[36] = 1;
+        let mut settings = no_settings();
+
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.gamma_sonic = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+
+        // Event bytes changing while the story select is open must not split.
+        let in_menu = GameState {
+            game_status: 21,
+            ..current
+        };
+        assert!(!should_split(&settings, &in_menu, &old, &mut fresh_run()));
+        // An enabled event staying unchanged does not split again.
+        assert!(!should_split(
+            &settings,
+            &current,
+            &current,
+            &mut fresh_run()
+        ));
+    }
+
+    #[test]
+    fn sky_chase_ignore_suppresses_other_splits() {
+        let old = GameState::default();
+        let mut current = GameState {
+            level: 36,
+            ..GameState::default()
+        };
+        current.event_bytes[36] = 1;
+        let mut settings = no_settings();
+        settings.gamma_sonic = true;
+
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.ignore_sky_chase_1 = true;
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        // Sky Chase 2 is a separate setting.
+        let act_two = GameState {
+            level: 37,
+            ..current
+        };
+        assert!(should_split(&settings, &act_two, &old, &mut fresh_run()));
+        settings.ignore_sky_chase_2 = true;
+        assert!(!should_split(&settings, &act_two, &old, &mut fresh_run()));
+    }
+
+    #[test]
+    fn perfect_chaos_splits_once_on_health_reaching_zero() {
+        let old = GameState {
+            level: 19,
+            boss_health: 2,
+            ..GameState::default()
+        };
+        let current = GameState {
+            boss_health: 0,
+            ..old
+        };
+        let mut settings = no_settings();
+
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.perfect_chaos = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        assert!(!should_split(
+            &settings,
+            &current,
+            &current,
+            &mut fresh_run()
+        ));
+    }
+
+    #[test]
+    fn upgrade_split_needs_increase_and_a_loaded_level() {
+        let old = GameState {
+            level: 5,
+            ..GameState::default()
+        };
+        let current = GameState {
+            lightshoes: 1,
+            ..old
+        };
+        let mut settings = no_settings();
+        settings.sonic_powerup1 = true;
+
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        assert!(!should_split(&settings, &old, &current, &mut fresh_run()));
+        let at_level_zero = GameState {
+            level: 0,
+            ..current
+        };
+        assert!(!should_split(
+            &settings,
+            &at_level_zero,
+            &old,
+            &mut fresh_run()
+        ));
+    }
+
+    #[test]
+    fn emblem_in_action_stage_splits_after_delay_and_only_once() {
+        let old = GameState {
+            level: 5,
+            global_frame_count: 1000,
+            ..GameState::default()
+        };
+        let mut current = GameState {
+            global_frame_count: 1001,
+            ..old
+        };
+        current.emblem_bytes[0] = 1;
+        let mut run = fresh_run();
+
+        assert!(!emblem_split(&current, &old, &mut run));
+        assert_eq!(run.delay, 1001 + 190);
+
+        let waiting = GameState {
+            global_frame_count: 1100,
+            ..current
+        };
+        assert!(!emblem_split(&waiting, &current, &mut run));
+        let due = GameState {
+            global_frame_count: 1191,
+            ..current
+        };
+        assert!(emblem_split(&due, &waiting, &mut run));
+        assert_eq!(run.delay, 0);
+        assert!(!emblem_split(&due, &due, &mut run));
+    }
+
+    #[test]
+    fn emblem_in_later_levels_splits_immediately_but_not_in_main_menu() {
+        let old = GameState {
+            level: 20,
+            ..GameState::default()
+        };
+        let mut current = old;
+        current.emblem_bytes[3] = 1;
+
+        assert!(emblem_split(&current, &old, &mut fresh_run()));
+        let in_menu = GameState {
+            game_mode: 12,
+            ..current
+        };
+        assert!(!emblem_split(&in_menu, &old, &mut fresh_run()));
+    }
+
+    #[test]
+    fn credits_add_character_specific_frames_once() {
+        let mut run = fresh_run();
+        let old = GameState {
+            game_mode: 21,
+            curr_character: 2,
+            ..GameState::default()
+        };
+        let current = GameState {
+            game_mode: 22,
+            ..old
+        };
+        update_game_time(&current, &old, &mut run);
+        assert_eq!(run.credits_counter, 3599);
+        assert_eq!(run.total_frames, 0);
+
+        run.credits_counter = 1;
+        update_game_time(&current, &current, &mut run);
+        assert_eq!(run.total_frames, 14_657);
+        // The counter goes negative afterwards, so the bonus is not repeated.
+        update_game_time(&current, &current, &mut run);
+        assert_eq!(run.total_frames, 14_657);
+    }
 }
