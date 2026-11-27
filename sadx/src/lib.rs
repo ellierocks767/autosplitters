@@ -1618,4 +1618,110 @@ mod tests {
         assert!(should_split(&settings, &back, &back_old, &mut fresh_run()));
         assert!(!should_split(&settings, &back, &back, &mut fresh_run()));
     }
+
+    #[test]
+    fn egg_viper_splits_on_timer_edge_outside_cutscenes() {
+        let fighting = GameState {
+            level: 22,
+            curr_character: 0,
+            game_status: 15,
+            timer_start: 1,
+            boss_health: 1,
+            ..GameState::default()
+        };
+        let defeated = GameState {
+            timer_start: 0,
+            boss_health: 0,
+            ..fighting
+        };
+        let mut settings = no_settings();
+        assert!(!should_split(
+            &settings,
+            &defeated,
+            &fighting,
+            &mut fresh_run()
+        ));
+        settings.egg_viper = true;
+        assert!(should_split(
+            &settings,
+            &defeated,
+            &fighting,
+            &mut fresh_run()
+        ));
+        // Unlike Chaos 6, Sonic's Egg Viper still splits on the timer edge.
+        assert!(!should_split(
+            &settings,
+            &defeated,
+            &defeated,
+            &mut fresh_run()
+        ));
+
+        let cutscene = GameState {
+            in_cutscene: 1,
+            ..defeated
+        };
+        assert!(!should_split(
+            &settings,
+            &cutscene,
+            &fighting,
+            &mut fresh_run()
+        ));
+        let paused = GameState {
+            game_status: 16,
+            ..defeated
+        };
+        assert!(!should_split(
+            &settings,
+            &paused,
+            &fighting,
+            &mut fresh_run()
+        ));
+        let other_level = GameState {
+            level: 21,
+            ..defeated
+        };
+        assert!(!should_split(
+            &settings,
+            &other_level,
+            &fighting,
+            &mut fresh_run()
+        ));
+    }
+
+    #[test]
+    fn each_event_setting_maps_to_its_own_event_byte() {
+        type Case = (fn(&mut Settings), usize);
+        let cases: [Case; 14] = [
+            (|s| s.gamma_sonic = true, 36),
+            (|s| s.knux_sonic = true, 37),
+            (|s| s.zero_sonic = true, 48),
+            (|s| s.four_sonic = true, 49),
+            (|s| s.six_sonic = true, 50),
+            (|s| s.egg_hornet_sonic = true, 51),
+            (|s| s.gamma_tails = true, 95),
+            (|s| s.knux_tails = true, 96),
+            (|s| s.four_tails = true, 103),
+            (|s| s.egg_hornet_tails = true, 105),
+            (|s| s.sonic_knuckles = true, 158),
+            (|s| s.two_knuckles = true, 163),
+            (|s| s.four_knuckles = true, 165),
+            (|s| s.sonic_gamma = true, 282),
+        ];
+        let old = GameState::default();
+        for (enable, index) in cases {
+            let mut settings = no_settings();
+            enable(&mut settings);
+            for byte in [
+                36, 37, 48, 49, 50, 51, 95, 96, 103, 105, 158, 163, 165, 282, 300,
+            ] {
+                let mut current = GameState::default();
+                current.event_bytes[byte] = 1;
+                assert_eq!(
+                    should_split(&settings, &current, &old, &mut fresh_run()),
+                    byte == index,
+                    "setting for event {index} vs byte {byte}"
+                );
+            }
+        }
+    }
 }
