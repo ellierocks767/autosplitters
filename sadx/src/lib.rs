@@ -1558,4 +1558,64 @@ mod tests {
         };
         assert!(!should_split(&settings, &other, &old, &mut fresh_run()));
     }
+
+    #[test]
+    fn act_split_ignores_hubs_and_non_stage_levels() {
+        let mut settings = no_settings();
+        let old = GameState {
+            level: 1,
+            act: 0,
+            ..GameState::default()
+        };
+        let current = GameState { act: 1, ..old };
+        assert!(!should_split(&settings, &current, &old, &mut fresh_run()));
+        settings.act_split = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        assert!(!should_split(
+            &settings,
+            &current,
+            &current,
+            &mut fresh_run()
+        ));
+        for level in [0, 15, 22, 26, 29, 32, 33, 37] {
+            let old = GameState {
+                level,
+                act: 0,
+                ..GameState::default()
+            };
+            let current = GameState { act: 1, ..old };
+            assert!(
+                !should_split(&settings, &current, &old, &mut fresh_run()),
+                "act change in level {level} must not split"
+            );
+        }
+    }
+
+    #[test]
+    fn character_gated_misc_splits_need_their_character() {
+        // Mystic Ruins act 0 -> 2 jungle transitions belong to Amy only.
+        let old = GameState {
+            level: 33,
+            act: 0,
+            curr_character: 5,
+            ..GameState::default()
+        };
+        let current = GameState { act: 2, ..old };
+        let mut settings = no_settings();
+        settings.enter_jungle_to_fe_amy = true;
+        assert!(should_split(&settings, &current, &old, &mut fresh_run()));
+        let sonic = GameState {
+            curr_character: 0,
+            ..current
+        };
+        assert!(!should_split(&settings, &sonic, &old, &mut fresh_run()));
+
+        // Leaving the jungle back to the Egg Carrier route is the reverse edge.
+        let back_old = GameState { act: 2, ..old };
+        let back = GameState { act: 0, ..old };
+        let mut settings = no_settings();
+        settings.exit_jungle_to_ec_amy = true;
+        assert!(should_split(&settings, &back, &back_old, &mut fresh_run()));
+        assert!(!should_split(&settings, &back, &back, &mut fresh_run()));
+    }
 }
