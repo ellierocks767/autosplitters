@@ -10,11 +10,13 @@ logic changes go into both.
 
 ## Install
 
-Desktop LiveSplit: add [`dolphin.asl`](dolphin.asl) as an auto splitter. The script loads the emulator helper as
-`Components/emu-help-v2.dll`, so that file has to be in LiveSplit's `Components` folder.
+Open the [GitHub releases page](https://github.com/ellierocks767/autosplitters/releases) and choose the newest
+`lsw1-v*` release. Under **Assets**, download the file for your LiveSplit version.
 
-LiveSplit One (including the OBS plugin): build the `.wasm` below, or download it from the latest `lsw1-v*` release, and
-load it in the auto splitter settings.
+- **Desktop LiveSplit** uses `dolphin.asl`. Add it as an auto splitter and make sure `emu-help-v2.dll` is in LiveSplit's
+  `Components` folder.
+- **LiveSplit One and the OBS plugin** use `lsw1_wasm.wasm`. Load it in the custom autosplitter setting. You can also
+  [build it from source](#build).
 
 ## Settings
 
