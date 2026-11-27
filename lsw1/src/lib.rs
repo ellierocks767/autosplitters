@@ -674,19 +674,29 @@ mod tests {
     }
 
     #[test]
-    fn podrace_splits_the_first_two_laps() {
+    fn podrace_splits_the_first_two_laps_each_visit_then_the_finish() {
         let on = settings(true, false);
         let mut rooms = RoomSplits::default();
-        let mut laps = Vec::new();
-        for _ in 0..3 {
-            laps.push(should_split(
-                &on,
-                &mut rooms,
-                &inside(27, ""),
-                &inside(27, "door_B"),
-            ));
+        let mut step =
+            |old: &Watched, cur: &Watched| action(&on, &mut rooms, TimerState::Running, old, cur);
+        let track = inside(27, "");
+        let lap = Watched {
+            status: 1,
+            ..inside(27, "door_B")
+        };
+        for expected in [Some(Action::Split), Some(Action::Split), None] {
+            assert_eq!(step(&track, &lap), expected, "crossing the lap door");
+            assert_eq!(step(&lap, &track), None, "returning to the track");
         }
-        assert_eq!(laps, [true, true, false]);
+        let finished = Watched { status: 1, ..track };
+        assert_eq!(step(&track, &finished), Some(Action::Split), "finish");
+        assert_eq!(step(&finished, &finished), None, "held completion status");
+
+        let hub = inside(123, "");
+        assert_eq!(step(&finished, &hub), None);
+        assert_eq!(step(&hub, &track), None);
+        assert_eq!(step(&track, &lap), Some(Action::Split), "next visit");
+
         assert!(
             !should_split(
                 &on,
