@@ -1558,4 +1558,48 @@ mod tests {
         };
         assert!(!should_split(&settings, &other, &old, &mut fresh_run()));
     }
+
+    #[test]
+    fn each_event_byte_is_wired_to_its_own_setting() {
+        type Case = (fn(&mut Settings), usize);
+        let cases: [Case; 14] = [
+            (|s| s.gamma_sonic = true, 36),
+            (|s| s.knux_sonic = true, 37),
+            (|s| s.zero_sonic = true, 48),
+            (|s| s.four_sonic = true, 49),
+            (|s| s.six_sonic = true, 50),
+            (|s| s.egg_hornet_sonic = true, 51),
+            (|s| s.gamma_tails = true, 95),
+            (|s| s.knux_tails = true, 96),
+            (|s| s.four_tails = true, 103),
+            (|s| s.egg_hornet_tails = true, 105),
+            (|s| s.sonic_knuckles = true, 158),
+            (|s| s.two_knuckles = true, 163),
+            (|s| s.four_knuckles = true, 165),
+            (|s| s.sonic_gamma = true, 282),
+        ];
+        let old = GameState::default();
+        for (enable, index) in cases {
+            let mut current = GameState::default();
+            current.event_bytes[index] = 1;
+            let mut settings = no_settings();
+            assert!(
+                !should_split(&settings, &current, &old, &mut fresh_run()),
+                "event {index} splits with its setting off"
+            );
+            enable(&mut settings);
+            assert!(
+                should_split(&settings, &current, &old, &mut fresh_run()),
+                "event {index} should split"
+            );
+            // A neighbouring, unmapped event byte never splits.
+            let mut other = GameState::default();
+            other.event_bytes[index + 1] = 1;
+            assert!(
+                !should_split(&settings, &other, &old, &mut fresh_run()),
+                "event {} must not split",
+                index + 1
+            );
+        }
+    }
 }
